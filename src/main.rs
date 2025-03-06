@@ -17,6 +17,7 @@
 mod run;
 mod response;
 mod users;
+mod registry;
 
 mod config;
 use config::load_config;

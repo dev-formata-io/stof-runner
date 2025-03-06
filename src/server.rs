@@ -15,13 +15,13 @@
 //
 
 use std::{net::SocketAddr, sync::Arc, time::Duration};
-use axum::{routing::post, Router};
+use axum::{routing::{get, post}, Router};
 use colored::Colorize;
 use stof::SDoc;
 use tokio::sync::Mutex;
 use tower_governor::{governor::GovernorConfig, GovernorLayer};
 use tower_http::cors::CorsLayer;
-use crate::{config::{server_address, server_port}, run::run_handler, users::{api::{admin_delete_user_handler, admin_set_user_handler}, load_users}};
+use crate::{config::{server_address, server_port}, registry::{api::{delete_registry_handler, get_registry_handler, publish_registry_handler}, system::SystemRegistry, Registry}, run::run_handler, users::{api::{admin_delete_user_handler, admin_set_user_handler}, load_users}};
 
 
 /// Server state.
@@ -32,6 +32,9 @@ pub struct ServerState {
 
     /// Users document.
     pub users: Arc<Mutex<SDoc>>,
+
+    /// Registry.
+    pub registry: Arc<Mutex<dyn Registry>>,
 }
 
 
@@ -51,12 +54,19 @@ pub async fn serve(config: SDoc) {
     let cors = CorsLayer::permissive();
     let address = SocketAddr::from((server_address(&config), server_port(&config)));
     let users = load_users(&config);
+    let registry = SystemRegistry::new(&config);
     let state = ServerState {
         config: Arc::new(Mutex::new(config)),
         users: Arc::new(Mutex::new(users)),
+        registry: Arc::new(Mutex::new(registry)),
     };
 
     let app = Router::new()
+        // Registry API
+        .route("/registry/{*path}", get(get_registry_handler)
+            .put(publish_registry_handler)
+            .delete(delete_registry_handler))
+
         // Run API
         .route("/run", post(run_handler))
 
@@ -74,7 +84,7 @@ pub async fn serve(config: SDoc) {
         .await
         .unwrap();
     
-    println!("{} {} {}", "starting runner".purple(), "on".dimmed(), listener.local_addr().unwrap().to_string().bright_cyan().bold());
+    println!("{} {} {}", "stof-runner".purple(), "listening on".dimmed(), listener.local_addr().unwrap().to_string().bright_cyan().bold());
 
     axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
         .await

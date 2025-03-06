@@ -20,7 +20,7 @@ use bytes::Bytes;
 use stof::{SDoc, SVal};
 use stof_http::HTTPLibrary;
 use tokio::time::timeout;
-use crate::{config::{opaque_errors, run_enabled, run_timeout}, response::StofResponse, server::ServerState, users::auth::auth_exec};
+use crate::{config::{opaque_errors, registry_path, run_enabled, run_timeout}, registry::pkg::RPKG, response::StofResponse, server::ServerState, users::auth::auth_exec};
 mod sandbox_fs;
 use sandbox_fs::TmpFileSystemLibrary;
 
@@ -33,6 +33,7 @@ pub(crate) async fn run_handler(State(state): State<ServerState>, Query(query): 
 
     let opaque_stof_errors;
     let run_time;
+    let registry;
     {
         let mut config = state.config.lock().await;
         if !run_enabled(&config) {
@@ -40,6 +41,7 @@ pub(crate) async fn run_handler(State(state): State<ServerState>, Query(query): 
         }
         opaque_stof_errors = opaque_errors(&config);
         run_time = run_timeout(&mut config);
+        registry = registry_path(&config);
     }
 
     let mut content_type = String::from("stof");
@@ -52,7 +54,7 @@ pub(crate) async fn run_handler(State(state): State<ServerState>, Query(query): 
         export_format = format.clone();
     }
 
-    run_stof(&content_type, run_time, body, opaque_stof_errors, &export_format).await
+    run_stof(&content_type, run_time, body, opaque_stof_errors, &export_format, &registry).await
 }
 
 
@@ -63,10 +65,10 @@ pub(crate) async fn run_handler(State(state): State<ServerState>, Query(query): 
 /// body: bytes of the incoming Stof document.
 /// opaque_errors: true if specific error information should be hidden from the response.
 /// export_format: default is "bstof", but the resulting document gets exported to this format for the response.
-async fn run_stof(content_type: &str, time: Duration, mut body: Bytes, opaque_errors: bool, export_format: &str) -> StofResponse {
+async fn run_stof(content_type: &str, time: Duration, mut body: Bytes, opaque_errors: bool, export_format: &str, registry_path: &str) -> StofResponse {
     let result = timeout(time, async move {
         let mut doc = SDoc::default();
-        initialize_document(&mut doc).await;
+        initialize_document(&mut doc, registry_path).await;
         let res = doc.header_import("main", &content_type, &content_type, &mut body, "");
         match res {
             Ok(_) => {
@@ -144,10 +146,14 @@ async fn run_stof(content_type: &str, time: Duration, mut body: Bytes, opaque_er
 
 /// Initialize document.
 /// Load additional libraries, etc.
-async fn initialize_document(doc: &mut SDoc) {
+async fn initialize_document(doc: &mut SDoc, registry_path: &str) {
     // Replace the fs library with one that can only access the TMP directory
     doc.load_lib(Arc::new(TmpFileSystemLibrary::default()));
 
     // Add HTTP library
     doc.load_lib(Arc::new(HTTPLibrary::default()));
+
+    // Add the Registry PKG format in place of the normal PKG format
+    // This enables users to load packages from this registry using the familiar "import pkg '@hello/hello'" format
+    doc.load_format(Arc::new(RPKG::new(registry_path)));
 }
