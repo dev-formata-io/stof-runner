@@ -90,8 +90,8 @@ async fn run_stof(content_type: &str, time: Duration, mut body: Bytes, opaque_er
                     }
                 }
 
-                // Run the main functions in this document
-                let res = doc.run(None);
+                // Run the remote functions in this document
+                let res = doc.run(None, Some("remote".into()));
                 match res {
                     Ok(_) => {
                         // Nothing to do here...
