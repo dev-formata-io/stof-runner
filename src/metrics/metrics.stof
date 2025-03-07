@@ -1,0 +1,81 @@
+//
+// Copyright 2024 Formata, Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+Config: {
+    save_path: 'registry/__metrics__.bstof'
+    last_modified: Time.now()
+
+    fn save() {
+        let bytes = blobify(root, 'bstof');
+        fs.write_blob(self.save_path, bytes);
+        self.last_modified = Time.now();
+    }
+    fn trySave() {
+        let now = Time.now();
+        let diff = now - self.last_modified;
+        if (diff > 10min) self.save();
+    }
+}
+Server: {
+    Run: {
+        count: 0
+
+        fn getCount(): int {
+            return self.count;
+        }
+        fn increment() {
+            self.count += 1;
+            root.Config.trySave();
+        }
+    }
+}
+Registry: {
+    Packages: {
+        count: 0
+        
+        fn getCount(): int {
+            return self.count;
+        }
+        fn increment() {
+            self.count += 1;
+            root.Config.trySave();
+        }
+        fn deincrement() {
+            let current = self.count;
+            if (current > 0) current -= 1;
+            self.count = current;
+            root.Config.trySave();
+        }
+    }
+    Downloads: {
+        total: 0
+
+        fn getTotalDownloadCount(): int {
+            return self.total;
+        }
+        fn getDownloadCount(package: str): int {
+            let path = package.replace('/', '.') + '.downloads';
+            return self.at(path).or(0);
+        }
+        fn increment(package: str) {
+            self.total += 1;
+            let path = package.replace('/', '.') + '.downloads';
+            let current = self.at(path).or(0);
+            self.set(path, current + 1);
+            root.Config.trySave();
+        }
+    }
+}

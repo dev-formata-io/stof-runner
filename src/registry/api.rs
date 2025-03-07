@@ -17,7 +17,7 @@
 use std::collections::BTreeMap;
 use axum::{extract::{Path, Query, State}, http::{HeaderMap, StatusCode}, response::IntoResponse};
 use bytes::Bytes;
-use crate::{config::registry_enabled, response::StofResponse, server::ServerState, users::auth::{auth_delete, auth_read, auth_write}};
+use crate::{config::registry_enabled, metrics::{registry_downloads_increment_count, registry_packages_deincrement_count, registry_packages_increment_count}, response::StofResponse, server::ServerState, users::auth::{auth_delete, auth_read, auth_write}};
 
 
 /// Publish to this registry handler.
@@ -34,6 +34,18 @@ pub(crate) async fn publish_registry_handler(State(state): State<ServerState>, P
         if !registry_enabled(&config) {
             return StofResponse::error(StatusCode::NOT_IMPLEMENTED, "registry is not available");
         }
+    }
+
+    let mut exists = false;
+    {
+        let registry = state.registry.lock().await;
+        if let Ok(exst) = registry.exists(&path) {
+            exists = exst;
+        }
+    }
+    if !exists {
+        let mut metrics = state.metrics.lock().await;
+        registry_packages_increment_count(&mut metrics);
     }
 
     let mut overwrite = true;
@@ -67,6 +79,18 @@ pub(crate) async fn delete_registry_handler(State(state): State<ServerState>, Pa
         }
     }
 
+    let mut exists = false;
+    {
+        let registry = state.registry.lock().await;
+        if let Ok(exst) = registry.exists(&path) {
+            exists = exst;
+        }
+    }
+    if exists {
+        let mut metrics = state.metrics.lock().await;
+        registry_packages_deincrement_count(&mut metrics);
+    }
+
     let mut registry = state.registry.lock().await;
     if let Ok(res) = registry.delete(&path) {
         if res {
@@ -91,6 +115,18 @@ pub(crate) async fn get_registry_handler(State(state): State<ServerState>, Path(
         if !registry_enabled(&config) {
             return StofResponse::error(StatusCode::NOT_IMPLEMENTED, "registry is not available");
         }
+    }
+
+    let mut exists = false;
+    {
+        let registry = state.registry.lock().await;
+        if let Ok(exst) = registry.exists(&path) {
+            exists = exst;
+        }
+    }
+    if exists {
+        let mut metrics = state.metrics.lock().await;
+        registry_downloads_increment_count(&mut metrics, &path);
     }
 
     let registry = state.registry.lock().await;

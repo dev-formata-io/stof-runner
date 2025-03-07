@@ -20,7 +20,7 @@ use bytes::Bytes;
 use stof::{SDoc, SVal};
 use stof_http::HTTPLibrary;
 use tokio::time::timeout;
-use crate::{config::{opaque_errors, registry_path, run_enabled, run_timeout}, registry::pkg::RPKG, response::StofResponse, server::ServerState, users::auth::auth_exec};
+use crate::{config::{opaque_errors, registry_path, run_enabled, run_timeout}, metrics::increment_server_run_count, registry::pkg::RPKG, response::StofResponse, server::ServerState, users::auth::auth_exec};
 mod sandbox_fs;
 use sandbox_fs::PFileSystemLibrary;
 
@@ -52,6 +52,12 @@ pub(crate) async fn run_handler(State(state): State<ServerState>, Query(query): 
     let mut export_format = String::from("bstof");
     if let Some(format) = query.get("export") {
         export_format = format.clone();
+    }
+
+    // metrics
+    {
+        let mut metrics = state.metrics.lock().await;
+        increment_server_run_count(&mut metrics);
     }
 
     run_stof(&content_type, run_time, body, opaque_stof_errors, &export_format, &registry).await

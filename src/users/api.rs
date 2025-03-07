@@ -23,7 +23,7 @@ use super::{admin_delete_user, admin_set_user, auth::auth_admin};
 
 /// Create/update a user.
 pub(crate) async fn admin_set_user_handler(State(state): State<ServerState>, headers: HeaderMap, body: Bytes) -> impl IntoResponse {
-    if !auth_admin(&state, &headers).await {
+    if !auth_admin(&state, &headers, false).await {
         return StofResponse::error(StatusCode::FORBIDDEN, "access denied");
     }
 
@@ -59,7 +59,7 @@ pub(crate) async fn admin_set_user_handler(State(state): State<ServerState>, hea
 
 /// Delete a user.
 pub(crate) async fn admin_delete_user_handler(State(state): State<ServerState>, headers: HeaderMap, body: Bytes) -> impl IntoResponse {
-    if !auth_admin(&state, &headers).await {
+    if !auth_admin(&state, &headers, false).await {
         return StofResponse::error(StatusCode::FORBIDDEN, "access denied");
     }
     

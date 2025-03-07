@@ -18,6 +18,7 @@ mod run;
 mod response;
 mod users;
 mod registry;
+mod metrics;
 
 mod config;
 use config::load_config;

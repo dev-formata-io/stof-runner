@@ -21,7 +21,7 @@ use stof::SDoc;
 use tokio::sync::Mutex;
 use tower_governor::{governor::GovernorConfig, GovernorLayer};
 use tower_http::cors::CorsLayer;
-use crate::{config::{server_address, server_port}, registry::{api::{delete_registry_handler, get_registry_handler, publish_registry_handler}, system::SystemRegistry, Registry}, run::run_handler, users::{api::{admin_delete_user_handler, admin_set_user_handler}, load_users}};
+use crate::{config::{server_address, server_port}, metrics::{api::{get_downloads_count_handler, get_packages_count_handler, get_server_run_count_handler, get_total_downloads_count_handler}, load_metrics}, registry::{api::{delete_registry_handler, get_registry_handler, publish_registry_handler}, system::SystemRegistry, Registry}, run::run_handler, users::{api::{admin_delete_user_handler, admin_set_user_handler}, load_users}};
 
 
 /// Server state.
@@ -32,6 +32,9 @@ pub struct ServerState {
 
     /// Users document.
     pub users: Arc<Mutex<SDoc>>,
+
+    /// Metrics.
+    pub metrics: Arc<Mutex<SDoc>>,
 
     /// Registry.
     pub registry: Arc<Mutex<dyn Registry>>,
@@ -54,11 +57,13 @@ pub async fn serve(config: SDoc) {
     let cors = CorsLayer::permissive();
     let address = SocketAddr::from((server_address(&config), server_port(&config)));
     let users = load_users(&config);
+    let metrics = load_metrics(&config);
     let registry = SystemRegistry::new(&config);
     let state = ServerState {
         config: Arc::new(Mutex::new(config)),
         users: Arc::new(Mutex::new(users)),
         registry: Arc::new(Mutex::new(registry)),
+        metrics: Arc::new(Mutex::new(metrics)),
     };
 
     let app = Router::new()
@@ -73,6 +78,12 @@ pub async fn serve(config: SDoc) {
         // Admin Users API
         .route("/admin/users", post(admin_set_user_handler)
             .delete(admin_delete_user_handler))
+
+        // Admin Metrics API
+        .route("/admin/metrics/run", get(get_server_run_count_handler))
+        .route("/admin/metrics/packages", get(get_packages_count_handler))
+        .route("/admin/metrics/downloads", get(get_total_downloads_count_handler))
+        .route("/admin/metrics/downloads/{*path}", get(get_downloads_count_handler))
         
         .layer(GovernorLayer {
             config: governor_conf

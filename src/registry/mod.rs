@@ -23,6 +23,9 @@ pub mod api;
 
 /// Registry trait.
 pub trait Registry: Send + Sync {
+    /// Package exists?
+    fn exists(&self, path: &str) -> Result<bool>;
+
     /// Publish a package to this registry.
     fn publish(&mut self, path: &str, overwrite: bool, bytes: Bytes) -> Result<bool>;
 

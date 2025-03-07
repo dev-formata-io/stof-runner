@@ -193,6 +193,19 @@ impl StofResponse {
         }
     }
 
+    /// STOF response.
+    pub fn stof(code: StatusCode, stof: &str) -> Self {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, "application/stof".parse().unwrap());
+
+        Self {
+            headers,
+            status: code,
+            str_body: stof.to_owned(),
+            bytes_body: None,
+        }
+    }
+
     /// BSTOF response.
     pub fn bstof(code: StatusCode, bytes: Bytes) -> Self {
         let mut headers = HeaderMap::new();

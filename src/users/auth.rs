@@ -21,7 +21,7 @@ use super::{can_delete, can_exec, can_read, can_write};
 
 
 /// Authenticated as admin.
-pub(crate) async fn auth_admin(state: &ServerState, headers: &HeaderMap) -> bool {
+pub(crate) async fn auth_admin(state: &ServerState, headers: &HeaderMap, default: bool) -> bool {
     let config = state.config.lock().await;
     if let Some(admin) = get_admin(&config) {
         if let Some(authorization) = headers.get(AUTHORIZATION) {
@@ -34,7 +34,7 @@ pub(crate) async fn auth_admin(state: &ServerState, headers: &HeaderMap) -> bool
             }
         }
     }
-    false
+    default
 }
 
 

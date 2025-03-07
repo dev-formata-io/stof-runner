@@ -78,4 +78,12 @@ impl Registry for SystemRegistry {
         let bytes = fs::read(pkg_path)?;
         Ok(Bytes::from(bytes))
     }
+
+    /// Package exists?
+    fn exists(&self, path: &str) -> Result<bool> {
+        let dir_path = format!("{}/{}", self.base_path, path.trim_end_matches(".pkg"));
+        let pkg_path = format!("{dir_path}/__pkg__.pkg");
+        let exists = fs::exists(&pkg_path)?;
+        Ok(exists)
+    }
 }
