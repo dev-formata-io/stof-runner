@@ -22,7 +22,7 @@ use stof_http::HTTPLibrary;
 use tokio::time::timeout;
 use crate::{config::{opaque_errors, registry_path, run_enabled, run_timeout}, registry::pkg::RPKG, response::StofResponse, server::ServerState, users::auth::auth_exec};
 mod sandbox_fs;
-use sandbox_fs::TmpFileSystemLibrary;
+use sandbox_fs::PFileSystemLibrary;
 
 
 /// Run API endpoint handler.
@@ -147,8 +147,8 @@ async fn run_stof(content_type: &str, time: Duration, mut body: Bytes, opaque_er
 /// Initialize document.
 /// Load additional libraries, etc.
 async fn initialize_document(doc: &mut SDoc, registry_path: &str) {
-    // Replace the fs library with one that can only access the TMP directory
-    doc.load_lib(Arc::new(TmpFileSystemLibrary::default()));
+    // Replace the fs library with one that only has read access to the registry
+    doc.load_lib(Arc::new(PFileSystemLibrary::new(registry_path)));
 
     // Add HTTP library
     doc.load_lib(Arc::new(HTTPLibrary::default()));

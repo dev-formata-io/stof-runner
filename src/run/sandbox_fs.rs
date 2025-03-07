@@ -15,16 +15,21 @@
 //
 
 use std::fs;
-use stof::{lang::SError, pkg::PKG, Library, SDoc, SVal};
+use stof::{lang::SError, Library, SDoc, SVal};
 
 
 /// Sandboxed file system library.
-/// Used only when importing packages, which allows access to any file currently in the PKG temp directory.
-#[derive(Default)]
-pub struct TmpFileSystemLibrary {
-    pub pkg_format: PKG,
+pub struct PFileSystemLibrary {
+    pub prefix_path: String,
 }
-impl Library for TmpFileSystemLibrary {
+impl PFileSystemLibrary {
+    pub fn new(prefix_path: &str) -> Self {
+        Self {
+            prefix_path: prefix_path.to_owned(),
+        }
+    }
+}
+impl Library for PFileSystemLibrary {
     fn scope(&self) -> String {
         "fs".to_string()
     }
@@ -34,7 +39,7 @@ impl Library for TmpFileSystemLibrary {
             "read" => {
                 if parameters.len() == 1 {
                     let path = parameters.pop().unwrap().owned_to_string();
-                    if !path.contains(&self.pkg_format.temp_dir) {
+                    if !path.starts_with(&self.prefix_path) {
                         return Err(SError::filesys(pid, &doc, "read", "access denied"));
                     }
 
@@ -53,7 +58,7 @@ impl Library for TmpFileSystemLibrary {
             "read_blob" => {
                 if parameters.len() == 1 {
                     let path = parameters.pop().unwrap().owned_to_string();
-                    if !path.contains(&self.pkg_format.temp_dir) {
+                    if !path.starts_with(&self.prefix_path) {
                         return Err(SError::filesys(pid, &doc, "read", "access denied"));
                     }
                     
