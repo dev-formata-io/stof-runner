@@ -33,6 +33,7 @@ pub(crate) async fn auth_admin(state: &ServerState, headers: &HeaderMap, default
                 }
             }
         }
+        return false;
     }
     default
 }
