@@ -15,17 +15,19 @@
 //
 
 use std::fs;
-use stof::{lang::SError, Library, SDoc, SVal};
+use stof::{lang::SError, pkg::PKG, Library, SDoc, SVal};
 
 
 /// Sandboxed file system library.
 pub struct PFileSystemLibrary {
     pub prefix_path: String,
+    pub pkg: PKG,
 }
 impl PFileSystemLibrary {
     pub fn new(prefix_path: &str) -> Self {
         Self {
             prefix_path: prefix_path.to_owned(),
+            pkg: PKG::default(),
         }
     }
 }
@@ -39,7 +41,7 @@ impl Library for PFileSystemLibrary {
             "read" => {
                 if parameters.len() == 1 {
                     let path = parameters.pop().unwrap().owned_to_string();
-                    if !path.starts_with(&self.prefix_path) {
+                    if !path.starts_with(&self.prefix_path) && !path.starts_with(&self.pkg.temp_dir) {
                         return Err(SError::filesys(pid, &doc, "read", "access denied"));
                     }
 
@@ -58,7 +60,7 @@ impl Library for PFileSystemLibrary {
             "read_blob" => {
                 if parameters.len() == 1 {
                     let path = parameters.pop().unwrap().owned_to_string();
-                    if !path.starts_with(&self.prefix_path) {
+                    if !path.starts_with(&self.prefix_path) && !path.starts_with(&self.pkg.temp_dir) {
                         return Err(SError::filesys(pid, &doc, "read", "access denied"));
                     }
                     
